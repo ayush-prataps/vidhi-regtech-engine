@@ -25,7 +25,8 @@ diffs obligations against the prior version and flags what changed.
 
 ```
 vidhi-regtech-engine/
-├── apps/web/              Next.js app — dashboard, API routes
+# copy the same values into apps/web/.env.local for Next.js
+# fill in DATABASE_URL and GROQ_API_KEY once
 ├── packages/ingestion/     PDF -> clause-chunked text
 ├── packages/extraction/    Chunked text -> grounded obligation records (Groq/Llama)
 ├── packages/diff-engine/   Obligation version diffing
@@ -34,7 +35,7 @@ vidhi-regtech-engine/
 └── scripts/                Local setup helpers
 ```
 
-## Local setup
+Next.js reads `apps/web/.env.local` automatically, so the web app uses standard Next env loading.
 
 Prereqs: Node 20+, a local Postgres instance, and a Groq API key.
 
