@@ -1,123 +1,217 @@
-# Vidhi Build Plan — SEBI TechSprint 2026 (RegTech Track)
+# Vidhi — Agent Execution Spec (SEBI TechSprint 2026, Round 2)
 
-**Status as of this doc:** Round 1 idea submission done (deadline was July 12, 2026). Repo scaffold exists (`vidhi-regtech-engine`) but ingestion, extraction, diff, and tracker are all stubs, not real. This plan is about making them real, in order, with a working end-to-end demo at the end of every phase.
-
-**Rule for the whole plan:** no phase is "done" until something *runs*. Not "the code is written," not "it should work," it has to actually execute against real data and produce a real result you looked at with your own eyes. Ugly and working beats clean and imaginary.
-
----
-
-## Ground truth
-
-- **Target document:** Master Circular No. `SEBI/HO/MIRSD/MIRSD-PoD/P/CIR/2025/90`, dated **June 17, 2025**. Published at sebi.gov.in under legal/master-circulars. This supersedes the prior Master Circular for Stock Brokers dated August 9, 2024, and folds in every directive issued up to June 10, 2025.
-- **Why this document is genuinely useful, not just "the suggested one":** it rescinds specific numbered directions (119–130) from the prior appendix. That's a real, built-in test case for your diff engine's "was this repealed" logic. Don't invent a synthetic amendment example later, use this real pair.
-- **Event timeline:** Global Fintech Fest / TechSprint event is **September 9–11, 2026**, Jio World Centre, Mumbai. Round 1 deadline was July 12, 2026. **Round 2 (prototype + demo) deadline is not publicly announced yet as of this doc.** Do not plan against a date that doesn't exist, plan against your own runway and assume you might get as little as 2 weeks notice.
-- **Scope decision:** do not attempt to extract the whole ~200-page circular. Pick ONE chapter, KYC / recordkeeping obligations is recommended, it's clause-dense, has clear deadlines and frequencies, and is genuinely interesting to a compliance-officer judge. Go deep on one chapter instead of shallow across the whole document.
+Repo: https://github.com/ayush-prataps/vidhi-regtech-engine
+Deadline: August 9, 2026 · Plan start: August 1, 2026 · 8 days, no slack
 
 ---
 
-## Phase 1 — Ingestion has to be real (Days 1–4)
+## 0. How to use this document (read this first, whether you are human or agent)
 
-**Goal:** stop pretending the chunking regex works. Find out if it actually works.
+This file is written to be executed phase by phase by a coding agent (Cursor, Antigravity, Claude
+Code, or a human working alone). Rules for whoever executes it:
 
-**Tasks:**
-- [ ] Download the real PDF from sebi.gov.in (legal/master-circulars/jun-2025/master-circular-for-stock-brokers)
-- [ ] Isolate the KYC/recordkeeping chapter (or whichever chapter you pick)
-- [ ] Wire `pdf-parse` into `packages/ingestion/src/chunk.ts` (currently unwired by design, per the code comment)
-- [ ] Run the chunking regex against the real text. It will break. That's expected, not a failure.
-- [ ] Fix the regex/logic until clause_ref + text pairs actually line up with the document's real numbering
-- [ ] Load the results into the real Postgres `clauses` table via `docker compose up` + `db/schema.sql`
-
-**Outcome:** a script that takes the real PDF and leaves you with real, correct rows in a real database. Not mocked. Not "should work."
-
-**Reality check:** if you skip this phase and go straight to extraction using fake/sample text, you will find out your chunking is broken at the worst possible time, during Round 2 prep with no runway left.
-
----
-
-## Phase 2 — Extraction has to be real (Days 5–8)
-
-**Goal:** find out how good your obligation extraction actually is, with numbers, not vibes.
-
-**Tasks:**
-- [ ] Run the real chunked clauses from Phase 1 through `extract.ts` against the live Groq API (temperature 0, JSON mode, already wired)
-- [ ] Build a tiny manual eval spreadsheet: clause_ref | extracted obligation | correct? (y/n) | subject correct? (y/n) | anything invented? (y/n)
-- [ ] Manually check every single obligation the model produced against the source clause yourself
-- [ ] Calculate a rough precision number (% of obligations that were accurate and grounded)
-- [ ] If precision is low, that's your signal to build the applicability-context injection (default_subject from the circular's own applicability section) before moving on
-
-**Outcome:** a real `obligations` table with real extracted data, plus a documented, honest precision number.
-
-**Reality check:** this precision number is your best asset for the Round 2 pitch. "We measured 82% precision on the KYC chapter, here's our error analysis" destroys "we built an AI system" in front of any judge who's seen more than one hackathon demo. Don't skip the measurement step to save time, the measurement IS the deliverable here.
+1. **Work phases in order.** Do not start Phase N+1 until every task in Phase N's Definition of
+   Done is checked off. Partial parallel work inside a phase is fine; skipping ahead across
+   phases is not.
+2. **Every task has an ID** (`T1.1`, `T1.2`, ...). When reporting progress, reference the ID, not
+   a description, so status is unambiguous.
+3. **Do not build anything in the "Explicitly out of scope" section**, even if it seems like a
+   natural extension. That section exists because it was deliberately cut to fit an 11-day
+   window. If a task in this document seems to require something from that list, stop and flag
+   it rather than building around it silently.
+4. **If blocked on a business/product decision** (not a technical one), stop and ask the human.
+   Do not guess at scope. Technical implementation decisions within a task's stated constraints
+   are the executor's call.
+5. **Every phase ends with a runnable artifact**, not just written code. "Done" means the command
+   in that phase's Definition of Done actually executes and produces the stated output.
 
 ---
 
-## Phase 3 — The hard problems have to be real (Days 9–12)
+## 1. Non-negotiable ground truth
 
-**Goal:** cross-referencing and version diffing, the two things that actually separate this from a toy RAG demo, need to work on real data.
-
-**Tasks:**
-- [ ] Build the `clause_references` table + regex/NER pass to detect "in continuation of Circular X," "as per Regulation Y" patterns in the real clauses
-- [ ] Build the diff engine's keyword classifier ("rescinds," "is substituted," "stands deleted/repealed," "is amended to read as") — deterministic, no LLM needed for this pass
-- [ ] Test the diff engine against the REAL Aug 2024 vs June 2025 circular pair, specifically the rescinded items 119–130
-- [ ] Do NOT build the embedding-similarity fallback for renumbered clauses yet — that's a real v2 problem, not needed for a Round 2 demo
-
-**Outcome:** you can point at two real circular versions and your system correctly labels obligations as new / modified / cancelled, using the real rescission language as proof, not a made-up example.
-
-**Reality check:** this is the phase most teams skip entirely and just show a chatbot instead. If you get through this phase for real, you are already ahead of most of the field on technical substance.
-
----
-
-## Phase 4 — The tracker has to be clickable (Days 13–16)
-
-**Goal:** a judge needs to open a URL and click through something, not read JSON in a terminal.
-
-**Tasks:**
-- [ ] Build a real obligations table view in `apps/web` (list, filter by intermediary category, show clause citation)
-- [ ] Add a basic evidence-mapping input (text field is fine, no file upload needed yet)
-- [ ] Build the gap-alert view: obligations with zero linked evidence, surfaced clearly
-- [ ] Resist the urge to make it pretty. Function first, styling later if time allows.
-
-**Outcome:** a URL you can open in a browser and click through live in front of a jury.
+- **Corpus files.** Two official SEBI master circulars are the entire data source for this round.
+  No other regulatory text should be ingested.
+  - `SEBI/HO/MIRSD/MIRSD-PoD/P/CIR/2025/90`, dated June 17, 2025 (current version)
+  - `SEBI/HO/MIRSD/MIRSD-PoD-1/P/CIR/2024/110`, dated August 9, 2024 (prior version, needed for
+    the diff engine)
+- **Pre-flight (human task, before Phase 1 starts):** copy both PDFs into the repo at:
+  ```
+  data/circulars/2025-06-17-master-circular.pdf
+  data/circulars/2024-08-09-master-circular.pdf
+  ```
+  These are not currently in the repo. An agent working from the repo alone cannot reach the
+  original chat project files, so this copy step must happen first or Phase 1 cannot start.
+- **Corpus scope for this round**, from both PDFs, both versions:
+  - The "Reporting Requirements" chapter (final numbered chapter in both documents, table of
+    paragraph numbers to reporting obligations, curated by SEBI itself).
+  - Sections covering Unique Client Code and Trading Account Opening (numbered ~20-21 in the
+    June 2025 version; numbers shift by 1 in the August 2024 version, do not assume identical
+    numbering across the two files, that's exactly the problem Phase 3 exists to handle).
+  - Nothing else in the ~200-page documents should be ingested this round.
+- **Model/infra constraints**, do not substitute:
+  - LLM: Groq API, `llama-3.3-70b-versatile`, temperature 0, JSON mode.
+  - DB: Postgres + pgvector, schema already defined at `db/schema.sql`.
+  - No other LLM provider this round (see Explicitly out of scope).
 
 ---
 
-## Phase 5 — The trust layer has to be real (Days 17–19)
+## 2. Explicitly out of scope for this round
 
-**Goal:** prove the system knows when it doesn't know, which is your actual differentiator.
+Do not implement these even if a task seems to invite them. They were cut deliberately to fit 11
+days without compromising the core deliverable (functional prototype + demo video):
 
-**Tasks:**
-- [ ] Wire up the `status` field (draft / needs_review / active) that already exists in the schema but isn't used yet
-- [ ] Route low-confidence extractions and unresolved cross-references into a visible review queue in the UI, instead of silently marking them active
-- [ ] Deliberately include at least one genuinely ambiguous clause in your demo dataset and confirm the system correctly flags it instead of guessing
-
-**Outcome:** a demo moment where the system says "I'm not sure, a human needs to check this" instead of confidently hallucinating. This is your single best pitch line: "here's a system that knows its own limits," not "here's a black box."
-
----
-
-## Phase 6 — Demo and submission polish (Days 20–22, buffer included)
-
-**Goal:** the video and the writeup have to match what the code actually does. No gap between claim and proof.
-
-**Tasks:**
-- [ ] Record the full demo: real PDF in → chunking → extraction with visible citations → diff catching the real rescission → gap alert firing → ambiguous clause routed to review
-- [ ] Update the Round 2 writeup with the concrete scenario (your chosen chapter) and the real precision number from Phase 2
-- [ ] Update the GitHub README so it no longer says "stub" next to things that are now real
-- [ ] Final pass: does every claim in the writeup have a corresponding thing that actually happens in the video? If not, fix the writeup, don't fake the video.
-
-**Outcome:** a submission where every sentence is backed by something that actually runs.
+- Gemini or any second LLM provider
+- Embedding-similarity matching in the diff engine (title-text matching is the approved fallback)
+- Full human-review workflow (a single flagged obligation in the demo is sufficient)
+- Auth, multi-tenancy, RBAC
+- Full audit-trail export
+- Ingesting any part of the source documents beyond the two scoped chapters
 
 ---
 
-## Timeline summary
+## 3. Environment setup (run once, before Phase 1)
 
-| Phase | Days | What becomes real |
+```bash
+git clone https://github.com/ayush-prataps/vidhi-regtech-engine.git
+cd vidhi-regtech-engine
+cp .env.example .env
+# fill in GROQ_API_KEY in .env before continuing
+
+docker compose up -d
+psql "$DATABASE_URL" -f db/schema.sql
+
+npm install --workspaces
+```
+
+Verify before proceeding: `docker compose ps` shows postgres and redis healthy, and
+`psql "$DATABASE_URL" -c '\dt'` lists the tables from `db/schema.sql`.
+
+---
+
+## Phase 1 (Jul 30 - Aug 1): Ingestion on real numbering
+
+**Objective:** both circulars, both scoped chapters, chunked correctly and loaded into Postgres.
+
+| ID | Task | Target file(s) |
 |---|---|---|
-| 1 | 1–4 | Ingestion (PDF → clauses in DB) |
-| 2 | 5–8 | Extraction (clauses → obligations, with measured precision) |
-| 3 | 9–12 | Cross-referencing + diff engine (on real circular pair) |
-| 4 | 13–16 | Compliance tracker UI (clickable, not just API) |
-| 5 | 17–19 | Human-review / confidence gating |
-| 6 | 20–22 | Demo video + submission polish |
+| T1.1 | Extend the clause-header regex to handle 4-level dotted numbering (e.g. `36.7.1.1`) and lettered/roman sub-bullets (`a)`, `i)`, `ii)`) as distinct chunk boundaries | `packages/ingestion/src/chunk.ts` |
+| T1.2 | Wire real PDF text extraction (`pdf-parse`, already a dependency) in place of the current stub | `packages/ingestion/src/chunk.ts` |
+| T1.3 | Run chunking against both PDFs, both scoped chapters (Reporting Requirements + UCC/Account Opening) | -- |
+| T1.4 | Insert resulting clauses into the `clauses` table, tagged with the correct `circular_id` for each of the two document versions | `packages/ingestion/src/chunk.ts` |
+| T1.5 | Parse the "Appendix - List of Circulars/Communication" table from both PDFs into a structured lookup (new table or extend `clauses` with a `source_reference` field, executor's call) | new: `packages/ingestion/src/parse_appendix.ts` |
+| T1.6 | Parse the "Reporting Requirements" table from both PDFs into a structured reference table, kept separate from `obligations` since this is ground truth, not model output | new: `db/migrations/002_reporting_ground_truth.sql`, `packages/ingestion/src/parse_reporting_table.ts` |
 
-Total: ~3 weeks of consistent work. Round 2's actual deadline isn't public yet, so this is built against your own runway, not theirs. Adjust dates once SEBI announces the real one, don't wait for the announcement to start.
+**Definition of Done:** `psql "$DATABASE_URL" -c "SELECT circular_id, count(*) FROM clauses GROUP BY circular_id;"` returns two rows with non-zero counts, one per document version. A separate query against the reporting ground-truth table returns the SEBI-authored list, not model output.
 
 ---
+
+## Phase 2 (Aug 1 - Aug 3): Extraction, validated against SEBI's own table
+
+**Objective:** obligations extracted from real clauses, with a measured recall number against
+official ground truth.
+
+| ID | Task | Target file(s) |
+|---|---|---|
+| T2.1 | Run `extract.ts` against all chunked clauses from the June 2025 version, both scoped chapters | `packages/extraction/src/extract.ts` |
+| T2.2 | Write a comparison script that matches extracted obligations against the Reporting Requirements ground-truth table and computes recall (what fraction of SEBI's listed obligations were independently extracted) | new: `packages/extraction/src/eval_against_ground_truth.ts` |
+| T2.3 | If recall is materially incomplete, add applicability-context injection: extract the circular's own applicability statement once and pass it as fixed context to every extraction call so the model has a default "who" to fall back on (this is the fix for clauses that use passive voice without naming a subject) | `packages/extraction/src/extract.ts`, `packages/extraction/src/prompts/obligation_extraction.md` |
+| T2.4 | Re-run T2.1-T2.2 after the fix, confirm recall improved | -- |
+| T2.5 | Manually spot-check 10-15 obligations from the UCC/Account Opening chapter (no official ground truth exists for this chapter, hand-checking is the only option here) | -- |
+
+**Definition of Done:** `eval_against_ground_truth.ts` outputs a concrete recall percentage
+against the official table, and that number is written down somewhere retrievable for the video
+script (a `RESULTS.md` at repo root is fine).
+
+---
+
+## Phase 3 (Aug 4 - Aug 5): Diff engine, on the real document pair
+
+**Objective:** correctly classify real changes between the two real circular versions.
+
+| ID | Task | Target file(s) |
+|---|---|---|
+| T3.1 | Build the keyword classifier for rescission/insertion/amendment language ("stands rescinded," "is inserted," "shall be substituted," etc.) | `packages/diff-engine/src/diff.ts` |
+| T3.2 | Implement title-text matching between clause sets from the two versions as the primary correlation strategy (not clause_ref alone, titles are stable across renumbering, numbers are not) | `packages/diff-engine/src/diff.ts` |
+| T3.3 | Run the diff engine against the two real ingested versions, confirm it flags: the rescission of appendix items 119-130 as "cancelled," the new Section 17 (system audit technology monitoring framework) as "new" (present only in the June 2025 version), and the GIFT-IFSC/NDS-OM sections as "new" for the same reason | -- |
+| T3.4 | Write the diff results into `obligation_versions` per the existing schema | `packages/diff-engine/src/diff.ts` |
+
+**Definition of Done:** running the diff command against the two real circular IDs produces
+output where all three confirmed real test cases (T3.3) are correctly classified. This is
+checkable against ground truth you already know the answer to, don't skip verifying it.
+
+---
+
+## Phase 4 (Aug 6): Minimal tracker UI
+
+**Objective:** a clickable interface, not raw JSON, since this is what the video shows.
+
+| ID | Task | Target file(s) |
+|---|---|---|
+| T4.1 | Obligations table view: clause citation visible per row, filterable by chapter/category | `apps/web/app/page.tsx`, new components under `apps/web/app/obligations/` |
+| T4.2 | Basic evidence-mapping input (text field is sufficient, no file upload) | `apps/web/app/obligations/[id]/` |
+| T4.3 | Gap-alert view: obligations with zero linked evidence, surfaced as a distinct list | `apps/web/app/gaps/` |
+| T4.4 | Route at least one obligation through `needs_review` status in the UI (visibly distinct from `active`) to demonstrate the system flagging uncertainty instead of guessing | `apps/web/app/api/obligations/route.ts`, UI status badge |
+| T4.5 | Simple diff-view page showing the three confirmed real test cases from Phase 3 as a visible "what changed" list | new: `apps/web/app/changes/` |
+
+**Definition of Done:** `npm run dev` in `apps/web`, and a human can click from the obligations
+list, into an obligation, see its citation, add evidence, see it disappear from the gap-alert
+list, and separately view the version-change page showing the three real diff cases.
+
+---
+
+## Phase 5 (Aug 7): Demo-ready state, not a video itself
+
+An agent cannot record a video. This phase's job is to make the human's recording session as
+frictionless as possible.
+
+| ID | Task |
+|---|---|
+| T5.1 | Write a seed script that resets the DB to a clean, demo-ready state in one command (both circulars ingested, extraction run, diff computed, one obligation pre-flagged `needs_review`) |
+| T5.2 | Write a `DEMO_SCRIPT.md` at repo root: a beat-by-beat walkthrough (problem statement -> approach -> key features -> live demo sequence) matching the actual working UI, so the human is reading a script that matches reality, not improvising |
+| T5.3 | Do a full dry run of the demo sequence end to end, fix anything that breaks |
+
+**Definition of Done:** running the seed script from a clean checkout, then following
+`DEMO_SCRIPT.md` step by step, works without any manual database fiddling.
+
+---
+
+## Phase 6 (Aug 8): Submission, with Aug 9 as pure buffer
+
+Human task, not agent. Checklist:
+
+| ID | Task |
+|---|---|
+| T6.1 | Record the video following `DEMO_SCRIPT.md` |
+| T6.2 | Update repo `README.md`: remove "stub" language for everything now real, list the actual recall number from Phase 2 |
+| T6.3 | Fill the submission form, every field checked against the actual prototype, not aspirational copy |
+| T6.4 | Submit on Aug 8. Aug 9 is buffer for form/upload issues only, not for finishing features |
+
+---
+
+## Stretch tier (only if core phases finish early, attempt in this order)
+
+Do not start these until Phases 1-5 are fully done. If time remains after Phase 5:
+
+1. Extend corpus to a third chapter (candidate: Margin Trading Facility, also clause-dense with
+   clear deadlines)
+2. Add the embedding-similarity fallback to the diff engine for clauses that both changed number
+   and changed title
+3. Add a second, illustrative cross-reference case beyond the appendix table lookup (one manually
+   verified "in continuation of Circular X" inline reference, resolved and displayed in the UI)
+4. Visual polish pass on the tracker UI
+
+---
+
+## 4. Confirmed real fixtures (use these exact facts, do not substitute invented examples)
+
+- Rescission: circulars at Sr. nos. 119-130 of the June 2025 appendix, rescinded to the extent
+  they relate to stock brokers, per that circular's own preamble.
+- New section, June 2025 only: "Framework for Monitoring and Supervision of System Audit of
+  Stock Brokers through Technology based Measures," referencing SEBI/HO/MIRSD/TPD/CIR/2025/10
+  dated January 31, 2025.
+- New sections, June 2025 only: GIFT-IFSC Separate Business Unit facilitation (referencing
+  SEBI/HO/MIRSD/MIRSD-PoD/P/CIR/2025/61 dated May 2, 2025) and NDS-OM access facilitation
+  (referencing SEBI/HO/MIRSD/MIRSD-PoD/P/CIR/2025/14 dated February 11, 2025).
+
+These three are your ground truth for Phase 3 verification. If the diff engine disagrees with
+these, the diff engine is wrong, not the fixtures.

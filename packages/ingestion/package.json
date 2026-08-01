@@ -4,12 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "chunk": "tsx src/chunk.ts"
+    "chunk": "tsx src/chunk.ts",
+    "parse-appendix": "tsx src/parse_appendix.ts",
+    "parse-reporting": "tsx src/parse_reporting_table.ts"
   },
   "dependencies": {
-    "pdf-parse": "^2.4.5"
+    "pdf-parse": "^1.1.1",
+    "pg": "^8.22.0"
   },
   "devDependencies": {
+    "@types/pg": "^8.11.0",
     "tsx": "^4.22.5",
     "typescript": "^6.0.3"
   }

@@ -1,0 +1,40 @@
+# docker-compose.yml — local dev stack for Vidhi
+# Services: Postgres 16 + pgvector, Redis 7
+# Matches DATABASE_URL in .env.example: postgresql://vidhi:vidhi_local_dev@localhost:5432/vidhi
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: vidhi_postgres
+    environment:
+      POSTGRES_USER: vidhi
+      POSTGRES_PASSWORD: vidhi_local_dev
+      POSTGRES_DB: vidhi
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vidhi -d vidhi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: vidhi_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
