@@ -94,7 +94,19 @@ const CHAPTER_ANCHORS: RegExp[] = [
   /^\d{1,3}\.\s{1,4}Trading\s+Account\s+Opening/i,
   // Matches "X. REPORTING REQUIREMENTS" (roman numeral chapter heading)
   /^[IVXLC]+\.\s+REPORTING\s+REQUIREMENTS/,
+
+  // ── Phase 3 fixture chapters (2025 only — not in 2024 circular) ──────────
+  // Fixture 2: "17. Framework for Monitoring and Supervision of System Audit of Stock Brokers"
+  /^\d{1,3}\.\s{1,4}Framework\s+for\s+Monitoring\s+and\s+Supervision\s+of\s+System\s+Audit/i,
+  // Fixture 3a: "71. Measure for Ease of Doing Business – Facilitation ... GIFT ..."
+  //   Actual heading: "71. Measure for Ease of Doing Business – Facilitation to SEBI registered Stock"
+  //   (continues on next line: "Brokers to undertake ... Gujarat International Finance Tech-city – IFSC")
+  /^\d{1,3}\.\s{1,4}Measure\s+for\s+Ease\s+of\s+Doing\s+Business/i,
+  // Fixture 3b: "72. Facilitation to SEBI registered Stock Brokers to access Negotiated Dealing"
+  //   (continues: "System-Order Matching (NDS-OM) for trading in Government Securities")
+  /^\d{1,3}\.\s{1,4}Facilitation\s+to\s+SEBI\s+registered\s+Stock\s+Brokers\s+to\s+access/i,
 ];
+
 
 // Top-level section boundary: matches lines like "22. Nomination..." or "XI. ANNEXURES"
 // Used to detect end of a scoped chapter window.

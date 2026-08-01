@@ -38,12 +38,16 @@ const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 // Appendix section detection
 // ─────────────────────────────────────────────────────────────────────────────
 
-const APPENDIX_START_RE = /appendix\s*[-–—]?\s*list\s+of\s+circulars/i;
-const APPENDIX_ALT_RE   = /list\s+of\s+circulars\s*(?:\/\s*communications)?/i;
+// Body heading: "APPENDIX - LIST OF CIRCULARS / COMMUNICATION" (all caps, at line 20479)
+// Verified against 17-06-2025-Master-Circular.pdf.
+// Earlier mentions (lines 26, 29, 544) are in-text references, not the actual section.
+const APPENDIX_START_RE = /^APPENDIX\s*[-–—]?\s*LIST\s+OF\s+CIRCULARS/;
+// TOC entry: "45.  Appendix - List of Circulars / Communication 391 " — ends with page number.
+// Skip these so we don't lock onto the TOC.
+const TOC_PAGE_NUM_RE = /\s+\d{1,4}\s*$/;
 
-// A row in the appendix table starts with a bare integer (the Sr. No.)
-// Accepts: "1 ", "119 ", optionally preceded by some whitespace.
-const APPENDIX_ROW_RE = /^(\d{1,3})\s+(.+)/;
+// Row format: "1.  SEBI communication SE/10118..." (number + period + spaces + content)
+const APPENDIX_ROW_RE = /^(\d{1,3})\.\s{1,4}(.*)$/;
 
 // SEBI circular reference pattern: SEBI/HO/... or SEBI/MIRSD/... etc.
 const CIRCULAR_REF_RE = /SEBI\/[A-Z/]+\/\d{4}\/\d+/;
@@ -67,12 +71,13 @@ interface AppendixRow {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function parseAppendix(rawText: string): AppendixRow[] {
-  const lines = rawText.split("\n").map((l) => l.trim()).filter(Boolean);
+  const lines = rawText.split("\n");
 
-  // Find where the appendix starts
+  // Find where the appendix starts — body entry, not TOC
   let appendixStart = -1;
   for (let i = 0; i < lines.length; i++) {
-    if (APPENDIX_START_RE.test(lines[i]) || APPENDIX_ALT_RE.test(lines[i])) {
+    const t = lines[i].trim();
+    if (APPENDIX_START_RE.test(t) && !TOC_PAGE_NUM_RE.test(t)) {
       appendixStart = i;
       break;
     }
@@ -96,22 +101,26 @@ export function parseAppendix(rawText: string): AppendixRow[] {
   const rows: AppendixRow[] = [];
   let currentRow: { srNo: number; parts: string[] } | null = null;
 
-  for (const line of appendixLines) {
+  for (const rawLine of appendixLines) {
+    const line = rawLine.replace(/\0/g, "").trim();
+    if (!line) continue;
+
     const match = line.match(APPENDIX_ROW_RE);
 
     if (match) {
       const srNo = parseInt(match[1], 10);
 
-      // Sanity check: sr_no should be sequential (within ±5 of last seen)
-      const lastSr = rows.length > 0 ? rows[rows.length - 1].srNo : 0;
-      const isLikelyNewRow = srNo > 0 && (rows.length === 0 || srNo === lastSr + 1 || srNo <= lastSr + 5);
+      // Sanity check: sr_no should be sequential within ±5 of the last
+      const lastSr = currentRow?.srNo ?? 0;
+      const isLikelyNewRow = srNo > 0 && (lastSr === 0 || srNo === lastSr + 1 || (srNo <= lastSr + 5 && srNo > lastSr));
 
       if (isLikelyNewRow) {
         // Flush the previous row
         if (currentRow) {
           rows.push(buildRow(currentRow.srNo, currentRow.parts.join(" ")));
         }
-        currentRow = { srNo, parts: [match[2]] };
+        const content = match[2].trim();
+        currentRow = { srNo, parts: content ? [content] : [] };
         continue;
       }
     }
@@ -121,6 +130,7 @@ export function parseAppendix(rawText: string): AppendixRow[] {
       currentRow.parts.push(line);
     }
   }
+
 
   // Flush last row
   if (currentRow) {
@@ -204,10 +214,11 @@ async function main() {
   let inserted = 0;
   for (const row of rows) {
     const rescinded = isRescindedVersion && row.srNo >= 119 && row.srNo <= 130;
-    await pool.query(
+    const result = await pool.query(
       `INSERT INTO appendix_circulars
          (circular_id, sr_no, ref_circular_number, subject, issued_date, rescinded, parsed_from)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (circular_id, sr_no) DO NOTHING`,
       [
         circularId,
         row.srNo,
@@ -218,7 +229,7 @@ async function main() {
         version,
       ]
     );
-    inserted++;
+    inserted += result.rowCount ?? 0;
 
     if (rescinded) {
       console.log(`  [rescinded] Sr. ${row.srNo}: ${row.refCircularNumber}`);

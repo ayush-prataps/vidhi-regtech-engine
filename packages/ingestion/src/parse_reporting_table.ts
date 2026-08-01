@@ -34,17 +34,28 @@ const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Section detection
+//
+// Verified against 17-06-2025-Master-Circular.pdf:
+//   TOC entry:  line 353 -- "X.    REPORTING REQUIREMENTS 231 " (ends with page number)
+//   Body entry: line 12064 -- "X. REPORTING REQUIREMENTS " (no trailing page number)
+//
+// Table row format (from PDF extraction):
+//   "1.  13.2 " on one line, then description on subsequent lines.
+//   Pattern: row starts with a bare serial number followed by a para ref.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const REPORTING_SECTION_RE = /reporting\s+requirements/i;
+// Body section heading — all caps, roman numeral, NO trailing page number
+const REPORTING_BODY_RE = /^[IVXLC]+\.\s+REPORTING\s+REQUIREMENTS\s*$/;
 
-// End of reporting section: next major numbered section or "Annexure"
-const SECTION_END_RE = /^(?:annexure|appendix|\d{1,3}\.\s{1,4}[A-Z])/;
+// TOC lines end with a page number — skip these (same heuristic as chunk.ts)
+const TOC_PAGE_NUM_RE = /\s+\d{1,4}\s*$/;
 
-// A row starts with a para number (matches 2+ level dotted refs that look like
-// clause numbers, e.g. "20.1", "36.7", "4.2.1").
-// We require at least one dot so we don't match bare section headers like "20. UCC".
-const ROW_START_RE = /^(\d{1,3}(?:\.\d{1,3}){1,3})\s+(.*)/;
+// Matches the combined S.No + Para No. row: e.g. "1.  13.2 " or "23.  16-Table–8"
+// Group 1 = serial number (1, 2, 3...), Group 2 = para reference
+const TABLE_ROW_RE = /^(\d{1,3})\.\s{1,4}(\S.*)/;
+
+// End of table: hits another roman numeral section or "Annexure"
+const TABLE_END_RE = /^(?:annexure|appendix|[IVXLC]+\.\s)/i;
 
 // Known "To Whom" values in SEBI reporting tables
 const TO_WHOM_RE =
@@ -71,12 +82,15 @@ interface ReportingRow {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function parseReportingTable(rawText: string): ReportingRow[] {
-  const lines = rawText.split("\n").map((l) => l.trim()).filter(Boolean);
+  const lines = rawText.split("\n");
 
-  // Find the Reporting Requirements section
+  // Find the BODY section (not the TOC entry)
+  // TOC entry: ends with a page number like " 231 "
+  // Body entry: "X. REPORTING REQUIREMENTS " — no trailing page number
   let sectionStart = -1;
   for (let i = 0; i < lines.length; i++) {
-    if (REPORTING_SECTION_RE.test(lines[i])) {
+    const t = lines[i].trim();
+    if (REPORTING_BODY_RE.test(t) && !TOC_PAGE_NUM_RE.test(t)) {
       sectionStart = i;
       break;
     }
@@ -84,44 +98,53 @@ export function parseReportingTable(rawText: string): ReportingRow[] {
 
   if (sectionStart === -1) {
     console.warn(
-      "[warn] 'Reporting Requirements' section not found in PDF text. " +
-        "Check that the heading appears verbatim in the extracted text."
+      "[warn] Body 'REPORTING REQUIREMENTS' section not found. " +
+        "Looked for all-caps roman-numeral heading without trailing page number."
     );
     return [];
   }
 
-  console.log(`[info] Reporting Requirements section found at line ${sectionStart}.`);
+  console.log(`[info] Reporting Requirements body found at line ${sectionStart}.`);
 
-  // Extract only the section content (stop at next major section or Annexure)
-  const sectionLines: string[] = [];
-  for (let i = sectionStart + 1; i < lines.length; i++) {
-    if (SECTION_END_RE.test(lines[i]) && i > sectionStart + 5) {
-      // Don't stop too early (skip the first few lines which may have sub-headers)
-      break;
-    }
-    sectionLines.push(lines[i]);
-  }
-
-  // Parse rows: each row starts with a para number
+  // Parse the table rows that follow.
+  // Row format: "1.  13.2 " (S.No. + Para ref on one line), then description on subsequent lines.
+  // We use S.No. as the row boundary and capture the Para ref (group 2 of TABLE_ROW_RE).
   const rows: ReportingRow[] = [];
-  let current: { paraNumber: string; parts: string[] } | null = null;
+  let current: { srNo: number; paraNumber: string; parts: string[] } | null = null;
 
-  for (const line of sectionLines) {
-    const match = line.match(ROW_START_RE);
+  for (let i = sectionStart + 1; i < lines.length; i++) {
+    const t = lines[i].trim();
+    if (!t) continue;
 
-    if (match) {
-      if (current) {
-        rows.push(buildReportingRow(current.paraNumber, current.parts.join(" ")));
+    // Stop at next major section
+    if (TABLE_END_RE.test(t) && i > sectionStart + 10) break;
+
+    const rowMatch = t.match(TABLE_ROW_RE);
+    if (rowMatch) {
+      const srNo = parseInt(rowMatch[1], 10);
+      // Sanity check: S.No should be sequential (allow small gaps for sub-headers)
+      const lastSr: number = current?.srNo ?? 0;
+
+      if (srNo > 0 && (lastSr === 0 || srNo === lastSr + 1 || srNo <= lastSr + 3)) {
+        if (current) {
+          rows.push(buildReportingRow(current.paraNumber, current.parts.join(" ")));
+        }
+        // rowMatch[2] is "13.2 " or "16-Table–8 (1.5) ..."
+        // Extract the para number as the first token
+        const rest = rowMatch[2].trim();
+        const spaceIdx = rest.search(/\s/);
+        const paraNumber = spaceIdx === -1 ? rest : rest.slice(0, spaceIdx);
+        const descStart = spaceIdx === -1 ? "" : rest.slice(spaceIdx + 1).trim();
+        current = { srNo, paraNumber, parts: descStart ? [descStart] : [] };
+        continue;
       }
-      current = { paraNumber: match[1], parts: [match[2]] };
-    } else if (current) {
-      current.parts.push(line);
     }
+
+    // Continuation line
+    if (current) current.parts.push(t);
   }
 
-  if (current) {
-    rows.push(buildReportingRow(current.paraNumber, current.parts.join(" ")));
-  }
+  if (current) rows.push(buildReportingRow(current.paraNumber, current.parts.join(" ")));
 
   return rows;
 }
@@ -205,11 +228,16 @@ async function main() {
   );
 
   let inserted = 0;
-  for (const row of rows) {
-    await pool.query(
+  for (let idx = 0; idx < rows.length; idx++) {
+    const row = rows[idx];
+    // Use ON CONFLICT DO NOTHING: the same para_number may appear multiple times in the
+    // SEBI table (same obligation listed under different reporting categories).
+    // We keep the first occurrence per (circular_id, para_number).
+    const result = await pool.query(
       `INSERT INTO reporting_ground_truth
          (circular_id, para_number, description, to_whom, frequency, format_ref, parsed_from)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (circular_id, para_number) DO NOTHING`,
       [
         circularId,
         row.paraNumber,
@@ -220,8 +248,9 @@ async function main() {
         version,
       ]
     );
-    inserted++;
+    inserted += result.rowCount ?? 0;
   }
+
 
   console.log(`[ok] Inserted ${inserted} ground truth rows for circular ${circularId}.`);
   console.log(`[ok] Run T2.2 (eval_against_ground_truth.ts) to compute extraction recall.`);

@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "extract": "tsx src/extract.ts"
+    "extract": "tsx src/extract.ts",
+    "eval": "tsx src/eval_against_ground_truth.ts"
   },
   "dependencies": {
     "groq-sdk": "^1.3.0",
