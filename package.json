@@ -9,7 +9,12 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace=apps/web",
+    "seed": "tsx scripts/seed_demo.ts",
     "db:migrate": "psql \"$DATABASE_URL\" -f db/schema.sql"
+  },
+  "devDependencies": {
+    "tsx": "^4.22.5",
+    "typescript": "^6.0.3"
   },
   "license": "MIT"
 }

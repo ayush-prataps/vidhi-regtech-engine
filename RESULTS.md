@@ -1,16 +1,16 @@
 # Vidhi Extraction Results
 
-Generated: 2026-08-01T14:56:26.679Z  
+Generated: 2026-08-02T18:36:43.615Z  
 Circular ID: `b71494b8-4007-44d5-a178-79e1263367fc`  
-Ingested chapters: 20, 21  
+Ingested chapters: 17, 20, 21, 71, 72  
 Ground truth rows (total): 39  
 Ground truth rows (in-scope): 1  
-Extracted obligations: 30
+Extracted obligations: 82
 
 ## Scoped Recall: **100.0%** (1/1)
 
 Scoped recall counts only reporting obligations from chapters that were ingested
-(sections 20, 21). This is the meaningful number — it measures what
+(sections 17, 20, 21, 71, 72). This is the meaningful number — it measures what
 the LLM could possibly have found given the ingestion scope.
 
 Full-circular recall is 2.6% (1/39), which is low by

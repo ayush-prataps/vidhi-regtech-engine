@@ -5,7 +5,11 @@ structured, versioned, machine-actionable obligation graph — with every obliga
 grounded to its exact source clause. On top of that sits a compliance tracker that maps
 obligations to intermediary evidence and flags gaps before an inspection does.
 
-**Status: functional prototype.** The ingestion → extraction → diff pipeline and web tracker UI are fully implemented and validated against the official SEBI ground truth table.
+**Live Production Prototype**: [https://vidhi-regtech-engine-web.vercel.app](https://vidhi-regtech-engine-web.vercel.app)
+
+**Status: Production Prototype.** The ingestion → extraction → diff pipeline, cloud database, and Next.js compliance tracker UI are fully implemented and validated against the official SEBI ground truth table.
+
+---
 
 ## What it does
 
@@ -24,7 +28,9 @@ Two problems, two pipelines, one shared store:
 3. **Compliance tracking UI** (`apps/web`) — the intermediary-facing surface where obligations
    get mapped to evidence, gaps get flagged in real time, and regulatory version changes are visually compared.
 
-## Extraction quality
+---
+
+## Extraction quality & recall
 
 Validated against SEBI's own official *Reporting Requirements* table (the ground truth
 published in the circular itself):
@@ -41,6 +47,8 @@ independently extracted by the LLM pipeline, within the chapters that were inges
 Full-circular recall is lower by design (38 of 39 ground truth rows are in chapters
 outside the current ingestion scope).
 
+---
+
 ## Diff engine fixtures (verified)
 
 The diff engine correctly identifies all three confirmed real changes between the
@@ -53,6 +61,8 @@ August 2024 and June 2025 master circulars for stock brokers:
 | Section 71 — GIFT-IFSC Separate Business Unit | New (2025 only) | ✅ |
 | Section 72 — NDS-OM access facilitation | New (2025 only) | ✅ |
 
+---
+
 ## Repo layout
 
 ```
@@ -60,26 +70,34 @@ vidhi-regtech-engine/
 ├── packages/ingestion/     PDF → clause-chunked text (pdf-parse, chapter-scoped)
 ├── packages/extraction/    Chunked text → grounded obligation records (Groq/Llama)
 ├── packages/diff-engine/   Obligation version diffing (bigram Jaccard + keyword classifier)
-├── apps/web/               Next.js compliance tracker UI
-├── db/                     Postgres schema, migrations
+├── apps/web/               Next.js 16 compliance tracker UI (deployed on Vercel)
+├── scripts/                Seed scripts & dataset generators
+├── db/                     Postgres schema, migrations (deployed on Neon)
 ├── docs/                   Build plan, architecture notes
-├── data/raw/               Source PDFs (gitignored)
 └── RESULTS.md              Extraction recall metrics (auto-generated)
 ```
 
-## Setup
+---
 
-Prereqs: Node 20+, Postgres, Groq API key.
+## Setup & Demo Seeding
+
+Prereqs: Node 20+, Postgres (Local or Neon Cloud), Groq API key.
 
 ```bash
 cp .env.example .env
 # fill in DATABASE_URL and GROQ_API_KEY
 
-psql "$DATABASE_URL" -f db/schema.sql
-psql "$DATABASE_URL" -f db/migrations/002_reporting_ground_truth.sql
-
 npm install --workspaces
 ```
+
+### Seed Database (< 2 seconds)
+To reset any database (Local or Neon Cloud) to a clean, demo-ready state with all 111 clauses, 114 obligations, 69 version diffs, and evidence items:
+
+```bash
+npm run seed
+```
+
+---
 
 ## Pipeline & UI commands
 
@@ -125,36 +143,43 @@ npm run diff -- \
   --new-circular-id <2025-uuid>  # writes to obligation_versions table
 ```
 
-**Run the Compliance Tracker UI**:
+**Run the Compliance Tracker UI locally**:
 ```bash
 cd apps/web
 npm run dev
 # Open http://localhost:3000
 ```
 
+---
+
 ## What's implemented
 
 | Component | Status |
 |---|---|
-| DB schema (circulars, clauses, obligations, evidence, obligation_versions) | ✅ Production-ready |
+| DB schema (circulars, clauses, obligations, evidence, obligation_versions) | ✅ Production-ready (Neon Cloud + Local) |
 | Clause chunking (4-level dotted numbering, chapter-scoped, idempotent) | ✅ Tested on real SEBI PDFs |
 | Appendix parsing (128 rows, rescission flags) | ✅ |
 | Reporting Requirements ground truth parsing (39 rows) | ✅ |
 | Obligation extraction (Groq/Llama, rate-limited, retry, JSON repair) | ✅ 82 + 32 obligations extracted |
 | Extraction recall evaluation (scoped, chapter-aware) | ✅ 100% scoped recall |
 | Diff engine (bigram Jaccard + keyword classifier + appendix rescission) | ✅ All 3 fixtures verified |
-| Compliance tracker UI (Obligations Graph, Gap Alerts, Evidence Mapping, Version Diffs) | ✅ Fully implemented (Phase 4) |
-| Seed script + demo walkthrough | 🔲 Phase 5 |
+| Compliance tracker UI (Obligations Graph, Gap Alerts, Evidence Mapping, Version Diffs) | ✅ Fully implemented (Next.js 16) |
+| Deterministic seed script (`npm run seed`) & Production Deployment | ✅ Live on Vercel + Neon Cloud |
 
-## Stack
+---
 
-Groq (Llama 3.3 70B / 3.1 8B) · Postgres + pgvector · Next.js · TypeScript
+## Tech Stack & Architecture
 
-## Origin
+* **LLM Extraction**: Groq API (`llama-3.3-70b-versatile` / `llama-3.1-8b-instant`)
+* **Cloud Database**: Neon Serverless PostgreSQL with `pgvector`
+* **Frontend & Web API**: Next.js 16 (Turbopack, App Router) deployed on Vercel
+* **Language & Runtime**: TypeScript, Node.js 20+
+
+---
+
+## Origin & Team
 
 Built for the **SEBI Securities Market TechSprint 2026** at Global Fintech Fest, under the
 **Agentic Compliance: From Regulatory Text to Operational Action** problem statement.
 
-## Author
-
-Ayush Pratap Singh, B.Tech CSE, BML Munjal University.
+**Author**: Ayush Pratap Singh, B.Tech CSE, BML Munjal University.
