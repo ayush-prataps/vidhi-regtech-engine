@@ -5,8 +5,7 @@ structured, versioned, machine-actionable obligation graph — with every obliga
 grounded to its exact source clause. On top of that sits a compliance tracker that maps
 obligations to intermediary evidence and flags gaps before an inspection does.
 
-**Status: functional prototype.** The ingestion → extraction → diff pipeline is fully
-implemented and has been validated against the official SEBI ground truth table.
+**Status: functional prototype.** The ingestion → extraction → diff pipeline and web tracker UI are fully implemented and validated against the official SEBI ground truth table.
 
 ## What it does
 
@@ -22,8 +21,8 @@ Two problems, two pipelines, one shared store:
    matching (not fragile clause-number matching) and flags what changed: new, amended,
    or repealed obligations.
 
-3. **Compliance tracking** (`apps/web`) — the intermediary-facing surface where obligations
-   get mapped to evidence, gaps get flagged, and audit trails get exported.
+3. **Compliance tracking UI** (`apps/web`) — the intermediary-facing surface where obligations
+   get mapped to evidence, gaps get flagged in real time, and regulatory version changes are visually compared.
 
 ## Extraction quality
 
@@ -82,7 +81,7 @@ psql "$DATABASE_URL" -f db/migrations/002_reporting_ground_truth.sql
 npm install --workspaces
 ```
 
-## Pipeline commands
+## Pipeline & UI commands
 
 **Ingest a circular** (chunk PDF into clause records):
 ```bash
@@ -126,6 +125,13 @@ npm run diff -- \
   --new-circular-id <2025-uuid>  # writes to obligation_versions table
 ```
 
+**Run the Compliance Tracker UI**:
+```bash
+cd apps/web
+npm run dev
+# Open http://localhost:3000
+```
+
 ## What's implemented
 
 | Component | Status |
@@ -137,7 +143,7 @@ npm run diff -- \
 | Obligation extraction (Groq/Llama, rate-limited, retry, JSON repair) | ✅ 82 + 32 obligations extracted |
 | Extraction recall evaluation (scoped, chapter-aware) | ✅ 100% scoped recall |
 | Diff engine (bigram Jaccard + keyword classifier + appendix rescission) | ✅ All 3 fixtures verified |
-| Compliance tracker UI | 🔲 In progress (Phase 4) |
+| Compliance tracker UI (Obligations Graph, Gap Alerts, Evidence Mapping, Version Diffs) | ✅ Fully implemented (Phase 4) |
 | Seed script + demo walkthrough | 🔲 Phase 5 |
 
 ## Stack
