@@ -11,7 +11,7 @@
 | Beat | Topic | Target Time | Primary Setup View |
 |---|---|---|---|
 | **Beat 1** | Problem Statement & High-Stakes Regulatory Context | 0:00 – 1:00 | SEBI PDF View & Slide |
-| **Beat 2** | Regulatory Translation, Precision/Recall & Audit Trail | 1:00 – 2:00 | `RESULTS.md` / `/audit` Page |
+| **Beat 2** | Regulatory Translation, Precision & Scoped Evaluation | 1:00 – 2:00 | `RESULTS.md` / `/audit` Page |
 | **Beat 3** | Live Product Demo — Local Prototype (0ms Lag) | 2:00 – 4:30 | `http://localhost:3000` |
 | **Beat 4** | Live Cloud Production & Neon + Vercel Deployment | 4:30 – 6:00 | Vercel Deployment & GitHub Repo |
 | **Beat 5** | Quantified Efficiency, Scope Roadmap & Closing | 6:00 – 6:30 | Architecture Summary |
@@ -36,16 +36,16 @@
 
 ---
 
-### Beat 2: Regulatory Translation, Precision & Recall (1:00 – 2:00)
+### Beat 2: Regulatory Translation, Precision & Scoped Evaluation (1:00 – 2:00)
 
-**Screen Action**: Open `RESULTS.md` or terminal view showing `npm run eval`.
+**Screen Action**: Open `RESULTS.md` or terminal view showing `npx tsx scripts/compute-precision.ts`.
 
 **Voiceover Script**:
 > "Vidhi does not use naive text chunking. Our chunking engine parses multi-level dotted clause headers — like `20.2.2.` or `17.4.` — preserving exact citation boundaries.
 >
 > We then run a structured extraction pipeline powered by Groq LLM API. The model is strictly instructed: *Extract only explicit, grounded obligations. Never infer or invent a rule.*
 >
-> <!-- NEW --> Crucially, we evaluated Vidhi against SEBI's official Reporting Requirements ground-truth table. Vidhi achieved **100.0% Scoped Recall** and **92.0% Extraction Precision** (manually reviewed by the author against verbatim source clause text across all 114 obligations). Every single reporting requirement listed by SEBI was independently discovered and cited by our pipeline.
+> <!-- REVISED FOR HONESTY & INTEGRITY --> Across our ingested focus chapters (Sections 17, 20, 21, 71, 72), Vidhi extracted 114 total operational obligations at **92.0% Extraction Precision** (manually evaluated against source clause text). Within these ingested chapters, Vidhi achieved **100% Scoped Recall**, discovering and citing the in-scope reporting obligation listed in SEBI's official ground-truth table.
 >
 > <!-- NEW --> Furthermore, Vidhi maintains a dedicated, append-only **Audit Trail** at `/audit` that logs all evidence attachments and status changes with immutable timestamps."
 
