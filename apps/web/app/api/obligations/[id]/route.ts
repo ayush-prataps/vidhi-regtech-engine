@@ -81,6 +81,17 @@ export async function PATCH(
       );
     }
 
+    // Fetch old status & details before update for audit log
+    const oldRes = await pool.query(
+      `SELECT o.status, c.clause_ref, o.obligation_summary 
+       FROM obligations o 
+       JOIN clauses c ON c.id = o.clause_id 
+       WHERE o.id = $1`,
+      [id]
+    );
+
+    const oldRow = oldRes.rows[0];
+
     const { rows } = await pool.query(
       `UPDATE obligations 
        SET status = $1 
@@ -93,7 +104,31 @@ export async function PATCH(
       return NextResponse.json({ error: "Obligation not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ obligation: rows[0] });
+    const updatedObligation = rows[0];
+
+    // Task 2: Insert into append-only audit_log
+    try {
+      await pool.query(
+        `INSERT INTO audit_log (entity_type, entity_id, action, actor, details)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          "obligation",
+          id,
+          "status_changed",
+          "Compliance Officer",
+          JSON.stringify({
+            clause_ref: oldRow?.clause_ref || "",
+            summary: oldRow?.obligation_summary || "",
+            old_status: oldRow?.status || "active",
+            new_status: status,
+          }),
+        ]
+      );
+    } catch (auditErr) {
+      console.error("[audit_log insert error - non-blocking]", auditErr);
+    }
+
+    return NextResponse.json({ obligation: updatedObligation });
   } catch (err) {
     console.error("[api/obligations/[id] PATCH]", err);
     return NextResponse.json(

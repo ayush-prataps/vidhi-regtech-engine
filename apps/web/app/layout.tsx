@@ -27,6 +27,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <Link href="/changes" className="nav-link">
                   <span>🔄 Version Diffs</span>
                 </Link>
+                <Link href="/audit" className="nav-link">
+                  <span>📜 Audit Log</span>
+                </Link>
               </div>
             </div>
           </nav>

@@ -77,3 +77,17 @@ CREATE TABLE IF NOT EXISTS organizations (
     intermediary_category TEXT NOT NULL,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Append-only audit trail for compliance events (evidence attachment, status changes).
+CREATE TABLE IF NOT EXISTS audit_log (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    entity_type     TEXT NOT NULL, -- 'obligation' | 'evidence'
+    entity_id       UUID NOT NULL,
+    action          TEXT NOT NULL, -- 'evidence_attached' | 'status_changed'
+    actor           TEXT NOT NULL DEFAULT 'Compliance Officer',
+    details         JSONB NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS audit_log_created_at_idx ON audit_log (created_at DESC);
+

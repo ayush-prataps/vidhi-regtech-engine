@@ -18,10 +18,17 @@ export async function POST(request: Request) {
     }
 
     // Verify obligation exists
-    const obCheck = await pool.query(`SELECT id FROM obligations WHERE id = $1`, [obligation_id]);
+    const obCheck = await pool.query(
+      `SELECT o.id, c.clause_ref, o.obligation_summary 
+       FROM obligations o 
+       JOIN clauses c ON c.id = o.clause_id 
+       WHERE o.id = $1`,
+      [obligation_id]
+    );
     if (obCheck.rows.length === 0) {
       return NextResponse.json({ error: "Obligation not found." }, { status: 404 });
     }
+    const ob = obCheck.rows[0];
 
     const { rows } = await pool.query(
       `INSERT INTO evidence (obligation_id, org_id, description, file_url, review_status)
@@ -35,7 +42,32 @@ export async function POST(request: Request) {
       ]
     );
 
-    return NextResponse.json({ evidence: rows[0] }, { status: 201 });
+    const insertedEvidence = rows[0];
+
+    // Task 2: Insert into append-only audit_log
+    try {
+      await pool.query(
+        `INSERT INTO audit_log (entity_type, entity_id, action, actor, details)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          "evidence",
+          insertedEvidence.id,
+          "evidence_attached",
+          "Compliance Officer",
+          JSON.stringify({
+            obligation_id,
+            clause_ref: ob.clause_ref,
+            summary: ob.obligation_summary,
+            evidence_description: description.trim(),
+            file_url: file_url ? file_url.trim() : null,
+          }),
+        ]
+      );
+    } catch (auditErr) {
+      console.error("[audit_log insert error - non-blocking]", auditErr);
+    }
+
+    return NextResponse.json({ evidence: insertedEvidence }, { status: 201 });
   } catch (err) {
     console.error("[api/evidence POST]", err);
     return NextResponse.json(
