@@ -19,16 +19,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </Link>
               <div className="nav-links">
                 <Link href="/" className="nav-link">
-                  <span>📋 Obligations Graph</span>
+                  <span>Obligations Graph</span>
                 </Link>
                 <Link href="/gaps" className="nav-link">
-                  <span>⚠️ Gap Alerts</span>
+                  <span>Gap Alerts</span>
                 </Link>
                 <Link href="/changes" className="nav-link">
-                  <span>🔄 Version Diffs</span>
+                  <span>Version Diffs</span>
                 </Link>
                 <Link href="/audit" className="nav-link">
-                  <span>📜 Audit Log</span>
+                  <span>Audit Log</span>
                 </Link>
               </div>
             </div>

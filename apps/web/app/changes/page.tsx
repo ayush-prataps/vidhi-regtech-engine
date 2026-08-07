@@ -59,21 +59,21 @@ export default function VersionChangesPage() {
         </p>
       </div>
 
-      {/* Stats Grid */}
+      {/* Stats Ledger Row */}
       <div className="stat-grid">
-        <div className="glass-card stat-card">
+        <div className="stat-card">
           <span className="stat-label">Total Changes</span>
           <span className="stat-value">{stats.total}</span>
         </div>
-        <div className="glass-card stat-card">
+        <div className="stat-card">
           <span className="stat-label">New Obligations</span>
-          <span className="stat-value" style={{ color: "var(--cyan)" }}>{stats.new}</span>
+          <span className="stat-value" style={{ color: "var(--primary)" }}>{stats.new}</span>
         </div>
-        <div className="glass-card stat-card">
+        <div className="stat-card">
           <span className="stat-label">Amended Obligations</span>
           <span className="stat-value" style={{ color: "var(--primary)" }}>{stats.amended}</span>
         </div>
-        <div className="glass-card stat-card">
+        <div className="stat-card">
           <span className="stat-label">Repealed / Rescinded</span>
           <span className="stat-value" style={{ color: "var(--rose)" }}>{stats.repealed}</span>
         </div>

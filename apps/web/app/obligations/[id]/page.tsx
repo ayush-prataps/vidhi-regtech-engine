@@ -191,10 +191,8 @@ export default function ObligationDetailPage({ params }: { params: Promise<{ id:
 
       {/* Grounding Source Box */}
       <div className="grounding-box">
-        <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--primary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.35rem" }}>
-          📜 Exact Grounded Source Clause Text (Verbatim Citation)
-        </div>
-        <p style={{ color: "var(--text-primary)", fontSize: "0.925rem", fontStyle: "italic", whiteSpace: "pre-wrap" }}>
+        <div className="grounding-label">SOURCE CLAUSE (VERBATIM)</div>
+        <p className="grounding-text">
           &ldquo;{obligation.clause_text}&rdquo;
         </p>
       </div>

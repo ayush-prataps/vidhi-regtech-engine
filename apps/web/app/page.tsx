@@ -69,25 +69,25 @@ export default function Home() {
       <div className="page-header">
         <h1 className="page-title">Regulatory Obligation Graph</h1>
         <p className="page-subtitle">
-          Grounded SEBI Master Circular obligations extracted with 100% scoped recall. Filter by status, category, or evidence gap.
+          Grounded SEBI Master Circular obligations, each cited to its exact source clause. Filter by status, category, or evidence gap.
         </p>
       </div>
 
-      {/* Metric Cards */}
+      {/* Metric Ledger Row */}
       <div className="stat-grid">
-        <div className="glass-card stat-card">
+        <div className="stat-card">
           <span className="stat-label">Total Obligations</span>
           <span className="stat-value">{stats.total}</span>
         </div>
-        <div className="glass-card stat-card">
+        <div className="stat-card">
           <span className="stat-label">Active Obligations</span>
           <span className="stat-value" style={{ color: "var(--emerald)" }}>{stats.active}</span>
         </div>
-        <div className="glass-card stat-card">
+        <div className="stat-card">
           <span className="stat-label">Needs Human Review</span>
           <span className="stat-value" style={{ color: "var(--amber)" }}>{stats.needs_review}</span>
         </div>
-        <div className="glass-card stat-card">
+        <div className="stat-card">
           <span className="stat-label">Compliance Gaps</span>
           <span className="stat-value" style={{ color: "var(--rose)" }}>{stats.total_gaps}</span>
         </div>
